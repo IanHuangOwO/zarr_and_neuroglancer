@@ -352,7 +352,7 @@ def zarr2zarr(izarrdir, ozarrdir, shift=(0,0,0), slices=(None,None,None), chunk_
     cs0 = [max(os0[i], iws0[i]) for i in range(3)]
     cs1 = [min(os1[i], iws1[i]) for i in range(3)]
 
-    store = zarr.NestedDirectoryStore(ozarrdir)
+    store = zarr.DirectoryStore(ozarrdir)
     ozarr = zarr.open(
             store=store, 
             shape=oshape, 
@@ -425,7 +425,7 @@ def resize(zarrdir, old_level, num_threads, algorithm="mean"):
 
     cz, cy, cx = idata.chunks
     sz, sy, sx = idata.shape
-    store = zarr.NestedDirectoryStore(odir)
+    store = zarr.DirectoryStore(odir)
     odata = zarr.open(
             store=store,
             shape=(divp1(sz,2), divp1(sy,2), divp1(sx,2)),
