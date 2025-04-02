@@ -21,8 +21,7 @@ python tiff_to_ome.py
     --chunk-size            128
     --resize-algorithm      nearest
     --nlevels               6
-    --zarr_only             False
-    --overwrite             True
+    --overwrite             
 '''
 
 # # tif files, ome dir
