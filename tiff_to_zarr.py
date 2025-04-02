@@ -1,100 +1,121 @@
 import tifffile
 import zarr
-from skimage.transform import resize
 import argparse
 import os
+import numpy as np
+
+from skimage.transform import resize
+from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
-'''
-python tiff_to_zarr.py tiff_path zarr_path 
-'''
+"""
+Usage:
+python tiff_to_zarr.py 
+    <tiff_path>         F:\Lab\others\YA_HAN\BIRDs\annotation_cropped.tif 
+    <zarr_path>         F:\Lab\others\YA_HAN\annotation.zarr
+    --chunk-size        128 128 128
+    --resized-shape     1950 8800 3800
+"""
 
-def resize_chunk(chunk, resize_factors):
+def resize_image(image_xy, output_shape, dtype):
     """
-    Resize a single chunk using skimage.transform.resize.
+    Resize a single 2D image (slice) to the specified shape using nearest-neighbor interpolation.
+    
+    Parameters:
+        image_xy (np.ndarray): The 2D input image to be resized.
+        output_shape (tuple): The desired (height, width) of the output image.
+        dtype (numpy dtype): The target data type for the resized image.
+    
+    Returns:
+        np.ndarray: The resized image in the given dtype.
     """
-    return resize(
-        chunk,
-        output_shape=tuple(int(s * f) for s, f in zip(chunk.shape, resize_factors)),
-        order=0,  # Nearest-neighbor interpolation
+    resized = resize(
+        image=image_xy,
+        output_shape=output_shape,
+        order=0,           # Nearest-neighbor interpolation
         mode='reflect',
         preserve_range=True
-    ).astype(chunk.dtype)
+    ).astype(dtype)
+    return resized
 
-def save_chunk_to_zarr(zarr_output, chunk, current_depth):
+def reesize_and_save(data: np.ndarray, resize_factors: tuple, zarr_output):
     """
-    Save a resized chunk to the Zarr file at the appropriate depth.
-    """
-    depth = chunk.shape[0]
-    zarr_output[current_depth:current_depth + depth, :, :] = chunk
-    return current_depth + depth
-
-def compute_resize_factors(original_shape, resized_to):
-    """
-    Compute the scale factors for resizing.
-    """
-    return tuple(new_dim / old_dim for new_dim, old_dim in zip(resized_to, original_shape))
-
-def process_and_save_chunks(data, resize_factors, zarr_output, num_chunks):
-    """
-    Process data in chunks, resize, and save each chunk to Zarr.
-    """
-    chunk_depth = data.shape[0] // num_chunks
-    chunks = [data[i:i + chunk_depth] for i in range(0, data.shape[0], chunk_depth)]
-    current_depth = 0
-
-    for chunk in tqdm(chunks, desc="Processing chunks"):
-        resized_chunk = resize_chunk(chunk, resize_factors)
-        current_depth = save_chunk_to_zarr(zarr_output, resized_chunk, current_depth)
-
-def tiff_to_zarr(input_tiff_path, output_zarr_path, resized_to=None, num_chunks=10, chunk_size=(128, 128, 128), compressor=None):
-    """
-    Convert a 3D TIFF file to Zarr format with optional resizing using NumPy arrays.
+    Resize a 3D image volume (Z, Y, X) to a new shape in two steps:
+    1. Resize along the Z axis (depth).
+    2. Resize each 2D slice (XY plane) in parallel using threads.
+    
+    The result is written to a Zarr array in chunks.
 
     Parameters:
-        input_tiff_path (str): Path to the input TIFF file.
-        output_zarr_path (str): Path to the output Zarr file.
-        resized_to (tuple, optional): Dimensions to resize the Z, Y, X dimensions. Defaults to None (no resizing).
-        num_chunks (int): Number of chunks to divide the array into along the depth axis.
-        chunk_size (tuple): Chunk size for Zarr storage.
-        compressor (zarr.storage.Compressor, optional): Compressor to use for Zarr storage.
-
-    Returns:
-        None
+        data (np.ndarray): The original 3D TIFF image volume.
+        resize_factors (tuple): The desired (Z, Y, X) shape of the resized volume.
+        zarr_output (zarr.core.Array): The output Zarr array for storing resized images.
     """
-    # Check if the input file exists
+    # Step 1: Resize the entire 3D volume along the Z axis
+    output_shape_z = (resize_factors[0], data.shape[1], data.shape[2])
+    data_resized_z = resize_image(data, output_shape_z, data.dtype)
+    
+    # Step 2: Resize each 2D XY slice in parallel
+    output_shape_xy = (resize_factors[1], resize_factors[2])
+    with ThreadPoolExecutor() as executor:
+        for idx in tqdm(range(0, resize_factors[0], zarr_output.chunks[0]), desc="Resizing and writing chunks"):
+            start_idx = idx
+            end_idx = min(idx + zarr_output.chunks[0], resize_factors[0])
+            
+            # Submit tasks to resize each XY slice in the current Z chunk
+            futures = [
+                executor.submit(resize_image, image_xy, output_shape_xy, data.dtype)
+                for image_xy in data_resized_z[start_idx:end_idx]
+            ]
+            
+            # Gather the results in the original order
+            resized_images = [future.result() for future in futures]
+            
+            # Save the resized chunk to the Zarr array
+            zarr_output[start_idx:end_idx, :, :] = np.array(resized_images)
+
+def tiff_to_zarr(input_tiff_path, output_zarr_path, resized_size=None, chunk_size=(128, 128, 128), compressor=None):
+    """
+    Convert a 3D TIFF image to a Zarr array, optionally resizing it during the process.
+
+    Parameters:
+        input_tiff_path (str): Path to the input 3D TIFF file.
+        output_zarr_path (str): Path to the output Zarr storage.
+        resized_size (tuple, optional): Desired (Z, Y, X) shape of the output. If None, no resizing is done.
+        chunk_size (tuple): Zarr chunk size. Default is (128, 128, 128).
+        compressor (zarr.Compressor, optional): Compressor for Zarr (e.g., Blosc, Zlib). Default is None.
+    """
     if not os.path.exists(input_tiff_path):
         raise FileNotFoundError(f"The input TIFF file '{input_tiff_path}' does not exist.")
-
-    # Read the TIFF file into a NumPy array
+    
+    # Load the TIFF as a 3D NumPy array
     print("Reading TIFF file...")
     with tifffile.TiffFile(input_tiff_path) as tiff:
         data = tiff.asarray()
+    
+    print(f"Original TIFF shape: {data.shape}, dtype: {data.dtype}")
 
-    print(f"Original TIFF file shape: {data.shape}, dtype: {data.dtype}")
+    if resized_size is not None:
+        if len(resized_size) != len(data.shape):
+            raise ValueError(f"Resized dimensions {resized_size} must match input dimensions {len(data.shape)}.")
 
-    if resized_to is not None:
-        if len(resized_to) != len(data.shape):
-            raise ValueError(f"Resized dimensions {resized_to} must match the number of dimensions {len(data.shape)} of the input image.")
+        print(f"Resizing image to shape {resized_size}...")
 
-        print(f"Resizing 3D image to dimensions {resized_to}...")
-
-        # Compute scale factors and initialize Zarr file
-        resize_factors = compute_resize_factors(data.shape, resized_to)
+        # Create an empty Zarr array with the desired shape
         zarr_output = zarr.open(
             output_zarr_path,
             mode='w',
-            shape=resized_to,
+            shape=resized_size,
             dtype=data.dtype,
             chunks=chunk_size,
             compressor=compressor
         )
 
-        # Process data in chunks
-        process_and_save_chunks(data, resize_factors, zarr_output, num_chunks)
-
+        # Perform resizing and write results to Zarr
+        reesize_and_save(data, resized_size, zarr_output)
     else:
-        # Save the original data to Zarr without resizing
+        # No resizing, just save the original data directly to Zarr
+        print("Saving original data without resizing...")
         zarr_output = zarr.open(
             output_zarr_path,
             mode='w',
@@ -103,23 +124,24 @@ def tiff_to_zarr(input_tiff_path, output_zarr_path, resized_to=None, num_chunks=
             chunks=chunk_size,
             compressor=compressor
         )
-        print("Saving original data without resizing...")
         zarr_output[:] = data
 
     print(f"Zarr file saved at: {output_zarr_path}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Convert a TIFF file to a Zarr format, with optional resizing.")
-    parser.add_argument("tiff_path", type=str, help="Path to the input TIFF file.")
+    parser = argparse.ArgumentParser(description="Convert a 3D TIFF image to a Zarr format with optional resizing.")
+    parser.add_argument("tiff_path", type=str, help="Path to the input 3D TIFF file.")
     parser.add_argument("zarr_path", type=str, help="Path to save the output Zarr file.")
-    parser.add_argument("--resized_shape", type=int, nargs='+', default=None, help="Dimensions to resize the Z, Y, X dimensions (e.g., 100 512 512). Default is no resizing.")
-    parser.add_argument("--num_chunks", type=int, default=10, help="Number of chunks to divide the array into along the depth axis.")
-    parser.add_argument("--chunk_size", type=int, nargs='+', default=[64, 64, 64], help="Chunk size for Zarr storage.")
-    parser.add_argument("--compressor", type=str, default=None, help="Compressor to use for Zarr storage (e.g., 'blosc', 'zlib'). Default is None.")
-    
+    parser.add_argument("--resized-shape", type=int, nargs='+', default=None,
+                        help="Resize shape for Z, Y, X dimensions (e.g., 100 512 512).")
+    parser.add_argument("--chunk-size", type=int, nargs='+', default=[128, 128, 128],
+                        help="Chunk size for Zarr array.")
+    parser.add_argument("--compressor", type=str, default=None,
+                        help="Zarr compressor to use: 'blosc' or 'zlib'. Default is None.")
+
     args = parser.parse_args()
-    
-    # Handle compressor option
+
+    # Select the appropriate Zarr compressor
     compressor = None
     if args.compressor:
         if args.compressor.lower() == 'blosc':
@@ -128,11 +150,9 @@ if __name__ == "__main__":
             compressor = zarr.Zlib()
         else:
             raise ValueError(f"Unsupported compressor: {args.compressor}")
-
-    # Ensure chunk size is a tuple
-    chunk_size = tuple(args.chunk_size)
-
-    # try:
-    tiff_to_zarr(args.tiff_path, args.zarr_path, tuple(args.resized_shape), args.num_chunks, chunk_size, compressor)
-    # except Exception as e:
-    #     print(f"An error occurred: {e}")
+    
+    if args.resized_shape:
+        tuple(args.resized_shape)
+    
+    # Start the conversion process
+    tiff_to_zarr(args.tiff_path, args.zarr_path, args.resized_shape, tuple(args.chunk_size), compressor)
