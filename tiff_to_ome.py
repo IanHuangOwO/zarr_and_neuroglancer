@@ -14,33 +14,34 @@ from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import cpu_count
 
 '''
-# tiffdir = Path(r"C:\Vesuvius\scroll 1 2000-2030")
-# zarrdir = Path(r"C:\Vesuvius\test.zarr")
-# tiffdir = Path(r"H:\Vesuvius\Scroll1.volpkg\volumes_masked\20230205180739")
-# tiffdir = Path(r"H:\Vesuvius\zarr_tests\masked_subset")
-# zarrdir = Path(r"H:\Vesuvius\zarr_tests\testzo.zarr")
-# zarrdir = Path(r"H:\Vesuvius\testzc.zarr")
-
-# tif files, ome dir
-# set chunk_size
-chunk_size = 128
-# slices = (None, None, slice(1975,2010))
-# slices = (slice(2000,2500), slice(2000,2512), slice(1975,2010))
-slices = (slice(2000,2500), slice(2000,2512), slice(1975,2005))
-maxgb = None
-nlevels = 6
-zarr_only = False
-first_new_level = 0
-# maxgb = .0036
+Usage:
+python tiff_to_ome.py 
+    <input_tiff_dir>        F:\Lab\others\YA_HAN\raw_image
+    <output_zarr_ome_dir>   F:\Lab\others\YA_HAN\raw_image_ome.zarr
+    --chunk-size            128
+    --resize-algorithm      nearest
+    --nlevels               6
+    --zarr_only             False
+    --overwrite             True
 '''
+
+# # tif files, ome dir
+# # set chunk_size
+# chunk_size = 128
+# # slices = (None, None, slice(1975,2010))
+# # slices = (slice(2000,2500), slice(2000,2512), slice(1975,2010))
+# slices = (slice(2000,2500), slice(2000,2512), slice(1975,2005))
+# maxgb = None
+# nlevels = 6
+# zarr_only = False
+# first_new_level = 0
+# # maxgb = .0036
 
 # create ome dir, .zattrs, .zgroup
 # (don't need to know output array dimensions, just number of levels,
 # possibly unit/dimension info)
 # create_ome_dir(zarrdir, nlevels)
 # quit if dir already exists
-
-# tifs2zarr(tiffdir, zarrdir+"/0", chunk_size, range(optional))
 
 def parseSlices(istr):
     sstrs = istr.split(",")
@@ -438,7 +439,7 @@ def main():
             default=cpu_count(), 
             help="Advanced: Number of threads to use for processing. Default is number of CPUs")
     parser.add_argument(
-            "--algorithm",
+            "--resize-algorithm",
             choices=['mean', 'gaussian', 'nearest'],
             default="nearest",
             help="Advanced: algorithm used to sub-sample the data")
@@ -469,7 +470,7 @@ def main():
     zarr_only = args.zarr_only
     overwrite = args.overwrite
     num_threads = args.num_threads
-    algorithm = args.algorithm
+    algorithm = args.resize_algorithm
     obytes = args.obytes
     print("overwrite", overwrite)
     first_new_level = args.first_new_level

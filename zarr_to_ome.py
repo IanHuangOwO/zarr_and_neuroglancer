@@ -1,37 +1,28 @@
 import sys
-import re
 from pathlib import Path
 import json
 import shutil
 import argparse
 import copy
 import numpy as np
-import tifffile
 import zarr
 import fsspec
-import warnings
 from numcodecs.registry import codec_registry
 import skimage.transform
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import cpu_count
 
-# Suppress warning about NestedDirectoryStore being removed
-# in zarr version 3.  
-warnings.filterwarnings("ignore", message="The NestedDirectoryStore.*")
-# Per https://github.com/zarr-developers/zarr-python/blob/v2.18.3/zarr/storage.py :
 '''
-NestedDirectoryStore will be removed in Zarr-Python 3.0 where controlling
-the chunk key encoding will be supported as part of the array metadata. See
-`GH1274 <https://github.com/zarr-developers/zarr-python/issues/1274>`_
-for more information.
+Usage:
+python zarr_to_ome.py 
+    <input_zarr_dir>        F:\Lab\others\YA_HAN\annotation.zarr
+    <output_zarr_ome_dir>   F:\Lab\others\YA_HAN\annotation_ome.zarr
+    --chunk-size            128
+    --resize-algorithm      nearest
+    --nlevels               6
+    --overwrite             
 '''
-
-# Controls the number of open https connections;
-# if this is not set, the Vesuvius Challenge data server 
-# may complain of too many requests
-# https://filesystem-spec.readthedocs.io/en/latest/async.html
-fsspec.config.conf['nofiles_gather_batch_size'] = 10
 
 class DecompressedLRUCache(zarr.storage.LRUStoreCache):
     def __init__(self, store, max_size):
@@ -99,7 +90,6 @@ class DecompressedLRUCache(zarr.storage.LRUStoreCache):
                     self._cache_value(key, value)
 
         return value
-
 
 # create ome dir, .zattrs, .zgroup
 # (don't need to know output array dimensions, just number of levels,
@@ -297,8 +287,6 @@ def zarr2zarr(izarrdir, ozarrdir, shift=(0,0,0), slices=(None,None,None), chunk_
         else:
             codec_cls = codec_registry[compression]
             compressor = codec_cls()
-            # if compression_opts is dict:
-            # compressor = codec_cls(**compression_opts)
 
     # If izarrdir is not a file (ie if it is a url for streaming),
     # then setting up the cache is very slow (the zarr.open line
@@ -438,9 +426,10 @@ def resize(zarrdir, old_level, num_threads, algorithm="mean"):
             )
 
     # Prepare tasks
-    tasks = [(idata, odata, z, y, x, cz, cy, cx, algorithm) for z in range(divp1(sz, 2*cz))
-                                                             for y in range(divp1(sy, 2*cy))
-                                                             for x in range(divp1(sx, 2*cx))]
+    tasks = [(idata, odata, z, y, x, cz, cy, cx, algorithm) 
+             for z in range(divp1(sz, 2*cz))
+             for y in range(divp1(sy, 2*cy))
+             for x in range(divp1(sx, 2*cx))]
 
     # Use ThreadPoolExecutor to process blocks in parallel
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
@@ -449,13 +438,9 @@ def resize(zarrdir, old_level, num_threads, algorithm="mean"):
     print("Processing complete")
 
 def main():
-    # parser = argparse.ArgumentParser()
     parser = argparse.ArgumentParser(
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-            description="Create OME/Zarr data store from an existing zarr data store",
-            # allow_abbrev=False,
-            # prefix_chars='--',
-            )
+            description="Create OME/Zarr data store from an existing zarr data store")
     parser.add_argument(
             "input_zarr_dir", 
             help="Name of zarr store directory")
@@ -463,12 +448,12 @@ def main():
             "output_zarr_ome_dir", 
             help="Name of directory that will contain OME/zarr datastore")
     parser.add_argument(
-            "--algorithm",
+            "--resize-algorithm",
             choices=['mean', 'gaussian', 'nearest'],
             default="mean",
             help="Algorithm used to sub-sample the data.  Use 'mean' if the input data is continuous, 'nearest' if the input data represents an indicator")
     parser.add_argument(
-            "--chunk_size", 
+            "--chunk-size", 
             type=int,
             help="Size of chunk; if not given, will be same as input zarr")
     parser.add_argument(
@@ -500,7 +485,6 @@ def main():
             default=cpu_count(), 
             help="Advanced: Number of threads to use for processing. Default is number of CPUs")
     
-
     args = parser.parse_args()
     
     ozarrdir = Path(args.output_zarr_ome_dir)
@@ -513,7 +497,7 @@ def main():
     nlevels = args.nlevels
     overwrite = args.overwrite
     num_threads = args.num_threads
-    algorithm = args.algorithm
+    algorithm = args.resize_algorithm
     print("overwrite", overwrite)
 
     shift = (0,0,0)

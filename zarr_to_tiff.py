@@ -56,13 +56,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert a Zarr file back to TIFF format, with optional resizing using Dask.")
     parser.add_argument("zarr_path", type=str, help="Path to the input Zarr file.")
     parser.add_argument("tiff_path", type=str, help="Path to save the output TIFF file.")
-    parser.add_argument("--resize_factors", type=float, nargs=3, default=None, help="Factors to resize the Z, Y, X dimensions (e.g., 0.5 0.5 0.5). Default is no resizing.")
-    parser.add_argument("--interpolation_order", type=int, default=1, help="The order of the spline interpolation (e.g., 0 for nearest, 1 for linear). Default is 1.")
+    parser.add_argument("--resize-factors", type=float, nargs=3, default=None, help="Factors to resize the Z, Y, X dimensions (e.g., 0.5 0.5 0.5). Default is no resizing.")
+    parser.add_argument("--resize-algorithm", type=int, default=1, help="The order of the spline interpolation (e.g., 0 for nearest, 1 for linear). Default is 1.")
     parser.add_argument("--output_dtype", type=str, default="uint16", help="Data type for the output TIFF file (e.g., 'uint8', 'uint16', 'float32'). Default is 'uint16'.")
 
     args = parser.parse_args()
-
-    try:
-        zarr_to_tiff(args.zarr_path, args.tiff_path, args.resize_factors, args.interpolation_order, args.output_dtype)
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    
+    zarr_to_tiff(args.zarr_path, args.tiff_path, args.resize_factors, args.resize_algorithm, args.output_dtype)
