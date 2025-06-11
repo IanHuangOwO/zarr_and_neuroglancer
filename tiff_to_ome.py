@@ -1,3 +1,13 @@
+'''
+Usage:
+python tiff_to_ome.py 
+    <input_tiff_dir>        F:\Lab\others\YA_HAN\raw_image
+    <output_zarr_ome_dir>   F:\Lab\others\YA_HAN\raw_image_ome.zarr
+    --chunk_size            128
+    --resize-algorithm      nearest
+    --nlevels               6
+    --overwrite             
+'''
 import sys
 import re
 from pathlib import Path
@@ -12,17 +22,6 @@ import skimage.transform
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import cpu_count
-
-'''
-Usage:
-python tiff_to_ome.py 
-    <input_tiff_dir>        F:\Lab\others\YA_HAN\raw_image
-    <output_zarr_ome_dir>   F:\Lab\others\YA_HAN\raw_image_ome.zarr
-    --chunk-size            128
-    --resize-algorithm      nearest
-    --nlevels               6
-    --overwrite             
-'''
 
 # # tif files, ome dir
 # # set chunk_size

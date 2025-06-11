@@ -1,3 +1,13 @@
+'''
+Usage:
+python zarr_to_ome.py 
+    <input_zarr_dir>        F:\Lab\others\YA_HAN\annotation.zarr
+    <output_zarr_ome_dir>   F:\Lab\others\YA_HAN\annotation_ome.zarr
+    --chunk-size            128
+    --resize-algorithm      nearest
+    --nlevels               6
+    --overwrite             
+'''
 import sys
 from pathlib import Path
 import json
@@ -12,17 +22,6 @@ import skimage.transform
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import cpu_count
-
-'''
-Usage:
-python zarr_to_ome.py 
-    <input_zarr_dir>        F:\Lab\others\YA_HAN\annotation.zarr
-    <output_zarr_ome_dir>   F:\Lab\others\YA_HAN\annotation_ome.zarr
-    --chunk-size            128
-    --resize-algorithm      nearest
-    --nlevels               6
-    --overwrite             
-'''
 
 class DecompressedLRUCache(zarr.storage.LRUStoreCache):
     def __init__(self, store, max_size):

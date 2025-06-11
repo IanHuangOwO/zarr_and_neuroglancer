@@ -1,0 +1,15 @@
+{
+  "name": "Neuroglancer Dev",
+  "image": "neuroglancer-server:latest",
+  "workspaceFolder": "/neuro-server",
+  "mounts": [
+    "source=D:/Lab/zarr_and_neuroglancer,target=/neuro-server,type=bind",
+    "source=D:/Lab/others/YA_HAN,target=/neuro-server/data,type=bind"
+  ],
+  "settings": {
+    "python.pythonPath": "/usr/local/bin/python"
+  },
+  "extensions": [
+    "ms-python.python"
+  ]
+}

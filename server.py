@@ -16,7 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DATA_DIR = "./"  # Adjust to your dataset root
+DATA_DIR = "./data"  # Adjust to your dataset root
 
 @app.get("/{file_path:path}")
 def serve_file(file_path: str):
