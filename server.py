@@ -3,10 +3,6 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-'''
-uvicorn server:app --host 0.0.0.0 --port 8000
-'''
-
 app = FastAPI()
 
 app.add_middleware(

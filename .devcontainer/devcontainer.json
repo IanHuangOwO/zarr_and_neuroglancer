@@ -1,5 +1,4 @@
 {
-  "name": "Neuroglancer Dev",
   "image": "neuroglancer-server:latest",
   "workspaceFolder": "/neuro-server",
   "mounts": [
