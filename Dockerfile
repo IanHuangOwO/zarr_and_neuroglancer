@@ -2,10 +2,10 @@
 # Based on Python 3.10 slim image
 FROM python:3.10-slim
 
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 # Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Expose Neuroglancer (7000) and FastAPI (8000)
-EXPOSE 7000
-EXPOSE 8000
