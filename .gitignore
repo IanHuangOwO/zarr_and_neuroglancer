@@ -1,7 +1,3 @@
-# Ignore the data folder
-/data/
-
-# Optional: ignore common system or IDE files
 *.log
 *.pyc
 __pycache__/

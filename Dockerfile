@@ -8,9 +8,6 @@ FROM python:3.10-slim
 #     git \
 #     && rm -rf /var/lib/apt/lists/*
 
-# Set Working Directory
-WORKDIR /zarr_neuroglancer
-
 # Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
