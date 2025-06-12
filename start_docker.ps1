@@ -8,12 +8,12 @@ $ContainerName = "zarr_neuroglancer"
 $ContainerWorkspacePath = "/workspace"
 
 # Convert relative path to absolute
-$HostCodeDir = "D:/iansaididontcare/Lab/zarr_and_neuroglancer/code" # Adjust this path as needed
-$ContainerCodePath = "/workspace/code"
+$HostCodeDir = "D:/iansaididontcare/Lab/zarr_and_neuroglancer/codes" # Adjust this path as needed
+$ContainerCodePath = "/workspace/codes"
 
 # Data path
 $HostDataPath = "D:/iansaididontcare/Lab/others/YA_HAN" # Adjust this path as needed
-$ContainerDataPath = "/workspace/data"
+$ContainerDataPath = "/workspace/datas"
 
 # Docker Compose file generation
 $ComposeFile = "./docker-compose.yml"
@@ -33,7 +33,7 @@ services:
       - "${HostCodeDir}:${ContainerCodePath}"
       - "${HostDataPath}:${ContainerDataPath}"
     working_dir: ${ContainerWorkspacePath}
-    command: uvicorn code.server:app --host 0.0.0.0 --port 8000
+    command: uvicorn codes.server:app --host 0.0.0.0 --port 8000
 "@
 
 # DevContainer config generation
