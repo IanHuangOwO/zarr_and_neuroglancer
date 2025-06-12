@@ -15,34 +15,6 @@ $ContainerWorkspacePath = "/zarr_neuroglancer"
 $HostDataPath = "D:/iansaididontcare/Lab/others/YA_HAN" # Adjust this path as needed
 $ContainerDataPath = "/zarr_neuroglancer/data"
 
-# 🔧 DevContainer config generation
-$DevContainerDir = ".devcontainer"
-$DevContainerFile = "$DevContainerDir\devcontainer.json"
-
-Write-Host "Generating .devcontainer/devcontainer.json..."
-New-Item -ItemType Directory -Force -Path $DevContainerDir | Out-Null
-Set-Content -Path $DevContainerFile -Value @"
-{
-  "name": "$ContainerName",
-  "image": "$ImageName",
-  "workspaceFolder": "$ContainerWorkspacePath",
-  "mounts": [
-    "source=${HostWorkspaceDir},target=${ContainerWorkspacePath},type=bind",
-    "source=${HostDataPath},target=${ContainerDataPath},type=bind"
-  ],
-  "customizations": {
-    "vscode": {
-      "settings": {
-        "python.pythonPath": "/usr/local/bin/python"
-      },
-      "extensions": [
-        "ms-python.python"
-      ]
-    }
-  }
-}
-"@
-
 # 🐳 Build image if it doesn't exist
 if (-not (docker images -q $ImageName)) {
     Write-Host "Building Docker image: $ImageName"
@@ -72,3 +44,34 @@ $DockerArgs = @(
 
 Write-Host "Running container '$ContainerName'"
 & docker @DockerArgs
+
+
+
+# # 🔧 DevContainer config generation
+# $DevContainerDir = ".devcontainer"
+# $DevContainerFile = "$DevContainerDir\devcontainer.json"
+
+# Write-Host "Generating .devcontainer/devcontainer.json..."
+# New-Item -ItemType Directory -Force -Path $DevContainerDir | Out-Null
+# Set-Content -Path $DevContainerFile -Value @"
+# {
+#   "name": "$ContainerName",
+#   "image": "$ImageName",
+#   "workspaceFolder": "${ContainerWorkspacePath}",
+#   "workspaceMount": "source=${HostWorkspaceDir},target=${ContainerWorkspacePath},type=bind",
+#   "mounts": [
+#     "source=${HostWorkspaceDir},target=${ContainerWorkspacePath},type=bind",
+#     "source=${HostDataPath},target=${ContainerDataPath},type=bind"
+#   ],
+#   "customizations": {
+#     "vscode": {
+#       "settings": {
+#         "python.pythonPath": "/usr/local/bin/python"
+#       },
+#       "extensions": [
+#         "ms-python.python"
+#       ]
+#     }
+#   }
+# }
+# "@
