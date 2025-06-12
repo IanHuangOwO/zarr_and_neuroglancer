@@ -23,20 +23,20 @@ Write-Host "Generating .devcontainer/devcontainer.json..."
 New-Item -ItemType Directory -Force -Path $DevContainerDir | Out-Null
 Set-Content -Path $DevContainerFile -Value @"
 {
-  \"name\": \"$ContainerName\",
-  \"image\": \"$ImageName\",
-  \"workspaceFolder\": \"$ContainerWorkspacePath\",
-  \"mounts\": [
-    \"source=${HostWorkspaceDir},target=${ContainerWorkspacePath},type=bind\",
-    \"source=${HostDataPath},target=${ContainerDataPath},type=bind\"
+  "name": "$ContainerName",
+  "image": "$ImageName",
+  "workspaceFolder": "$ContainerWorkspacePath",
+  "mounts": [
+    "source=${HostWorkspaceDir},target=${ContainerWorkspacePath},type=bind",
+    "source=${HostDataPath},target=${ContainerDataPath},type=bind"
   ],
-  \"customizations\": {
-    \"vscode\": {
-      \"settings\": {
-        \"python.pythonPath\": \"/usr/local/bin/python\"
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.pythonPath": "/usr/local/bin/python"
       },
-      \"extensions\": [
-        \"ms-python.python\"
+      "extensions": [
+        "ms-python.python"
       ]
     }
   }

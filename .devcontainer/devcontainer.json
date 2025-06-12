@@ -1,18 +1,18 @@
 {
-  \"name\": \"zarr_neuroglancer\",
-  \"image\": \"zarr_neuroglancer:latest\",
-  \"workspaceFolder\": \"/zarr_neuroglancer\",
-  \"mounts\": [
-    \"source=D:/iansaididontcare/Lab/zarr_and_neuroglancer,target=/zarr_neuroglancer,type=bind\",
-    \"source=D:/iansaididontcare/Lab/others/YA_HAN,target=/zarr_neuroglancer/data,type=bind\"
+  "name": "zarr_neuroglancer",
+  "image": "zarr_neuroglancer:latest",
+  "workspaceFolder": "/zarr_neuroglancer",
+  "mounts": [
+    "source=D:/iansaididontcare/Lab/zarr_and_neuroglancer,target=/zarr_neuroglancer,type=bind",
+    "source=D:/iansaididontcare/Lab/others/YA_HAN,target=/zarr_neuroglancer/data,type=bind"
   ],
-  \"customizations\": {
-    \"vscode\": {
-      \"settings\": {
-        \"python.pythonPath\": \"/usr/local/bin/python\"
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.pythonPath": "/usr/local/bin/python"
       },
-      \"extensions\": [
-        \"ms-python.python\"
+      "extensions": [
+        "ms-python.python"
       ]
     }
   }
