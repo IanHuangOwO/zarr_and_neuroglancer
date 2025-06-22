@@ -8,7 +8,7 @@ services:
       - "8000:8000"
       - "7000:7000"
     volumes:
-      - "D:/iansaididontcare/Lab/zarr_and_neuroglancer/codes:/workspace/codes"
+      - "./converter:/workspace/converter"
       - "D:/iansaididontcare/Lab/others/YA_HAN:/workspace/datas"
     working_dir: /workspace
-    command: uvicorn codes.server:app --host 0.0.0.0 --port 8000
+    command: uvicorn server:app --host 0.0.0.0 --port 8000 

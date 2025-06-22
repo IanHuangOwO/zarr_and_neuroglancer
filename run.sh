@@ -1,30 +1,31 @@
 #!/bin/bash
 
-# This script sets up a Docker container for Zarr Neuroglancer with VS Code DevContainer support.
-# It builds the Docker image if it doesn't exist, removes any existing container with the same name,
-# and runs the container with the necessary bind mounts for workspace and data directories.
+# Prompt for data directory
+read -p "Enter the full path to your data directory (e.g., /home/user/data): " USER_INPUT
 
-set -e  # Exit immediately if a command exits with a non-zero status
+# Resolve to absolute path and normalize slashes
+HOST_DATA_PATH=$(realpath "$USER_INPUT" 2>/dev/null)
 
-# Docker information
-ContainerName="zarr_neuroglancer"
-ContainerWorkspacePath="/workspace"
+# Validate path
+if [ ! -d "$HOST_DATA_PATH" ]; then
+  echo "Error: Path does not exist. Exiting..."
+  exit 1
+fi
 
-# Host paths (update these paths for Linux/Mac or use WSL if on Windows)
-HostCodeDir="/root/home/iansaididontcare/Lab/zarr_and_neuroglancer/codes"
-ContainerCodePath="/workspace/codes"
+# Normalize code path to absolute as well
+HOST_CODE_PATH=$(realpath "./converter")
+CONTAINER_CODE_PATH="/workspace/converter"
+CONTAINER_DATA_PATH="/workspace/datas"
+CONTAINER_NAME="zarr_neuroglancer"
+CONTAINER_WORKSPACE_PATH="/workspace"
+COMPOSE_FILE="./docker-compose.yml"
 
-HostDataPath=/root/home/iansaididontcare/Lab/others/YA_HAN"
-ContainerDataPath="/workspace/datas"
-
-# Docker Compose file generation
-ComposeFile="./docker-compose.yml"
-
+# Generate docker-compose.yml
 echo "Generating docker-compose.yml..."
-cat > "$ComposeFile" <<EOF
+cat > "$COMPOSE_FILE" <<EOF
 services:
-  ${ContainerName}:
-    container_name: ${ContainerName}
+  ${CONTAINER_NAME}:
+    container_name: ${CONTAINER_NAME}
     build:
       context: .
       dockerfile: Dockerfile
@@ -32,46 +33,23 @@ services:
       - "8000:8000"
       - "7000:7000"
     volumes:
-      - "${HostCodeDir}:${ContainerCodePath}"
-      - "${HostDataPath}:${ContainerDataPath}"
-    working_dir: ${ContainerWorkspacePath}
-    command: uvicorn codes.server:app --host 0.0.0.0 --port 8000
+      - "${HOST_CODE_PATH}:${CONTAINER_CODE_PATH}"
+      - "${HOST_DATA_PATH}:${CONTAINER_DATA_PATH}"
+    working_dir: ${CONTAINER_WORKSPACE_PATH}
+    command: uvicorn server:app --host 0.0.0.0 --port 8000
 EOF
 
-# DevContainer config generation
-DevContainerDir=".devcontainer"
-DevContainerFile="${DevContainerDir}/devcontainer.json"
-
-echo "Generating ${DevContainerFile}..."
-mkdir -p "$DevContainerDir"
-
-cat > "$DevContainerFile" <<EOF
-{
-  "name": "${ContainerName}",
-  "service": "${ContainerName}",
-  "dockerComposeFile": ".${ComposeFile}",
-  "workspaceFolder": "${ContainerWorkspacePath}",
-  "forwardPorts": [8000, 7000],
-  "customizations": {
-    "vscode": {
-      "settings": {
-        "python.pythonPath": "/usr/local/bin/python"
-      },
-      "extensions": [
-        "ms-python.python",
-        "ms-python.vscode-pylance"
-      ]
-    }
-  }
+# Define cleanup function
+cleanup() {
+  echo -e "\nStopping and cleaning up Docker container..."
+  docker-compose down
+  if [ -f "$COMPOSE_FILE" ]; then
+    rm "$COMPOSE_FILE"
+    echo "Removed generated docker-compose.yml"
+  fi
 }
-EOF
+trap cleanup EXIT
 
-# Remove any existing container with the same name
-if docker ps -a --format '{{.Names}}' | grep -q "^${ContainerName}$"; then
-  echo "Removing existing container ${ContainerName}..."
-  docker rm -f "${ContainerName}"
-fi
-
-# Build and start container
+# Start the container
 echo "Starting container via docker-compose up --build..."
 docker-compose up --build

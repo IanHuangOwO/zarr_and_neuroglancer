@@ -1,3 +1,7 @@
 fastapi
 uvicorn[standard]
 neuroglancer
+zarr
+tqdm
+scikit-image
+nibabel

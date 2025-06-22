@@ -1,21 +1,30 @@
-# This script sets up a Docker container for Zarr Neuroglancer with VS Code DevContainer support.
-# It builds the Docker image if it doesn't exist, removes any existing container with the same name,
-# and runs the container with the necessary bind mounts for workspace and data directories.
-# Ensure Docker is running before executing this script.
+# Prompt user for the host data directory
+$UserInput = Read-Host "Enter the full path to your data directory (e.g., D:/path/to/data)"
+
+# Normalize slashes (convert \ to /) and resolve to absolute path
+$NormalizedPath = $UserInput -replace '\\', '/'
+$ResolvedPath = Resolve-Path $NormalizedPath -ErrorAction SilentlyContinue
+
+# Validate input
+if (-not $ResolvedPath) {
+    Write-Error "The specified path does not exist. Exiting..."
+    exit 1
+}
+
+$HostDataPath = $ResolvedPath.Path -replace '\\', '/'
 
 # Docker information
 $ContainerName = "zarr_neuroglancer"
 $ContainerWorkspacePath = "/workspace"
 
-# Convert relative path to absolute
-$HostCodeDir = "D:/iansaididontcare/Lab/zarr_and_neuroglancer/codes" # Adjust this path as needed
-$ContainerCodePath = "/workspace/codes"
+# Fixed code directory
+$HostCodeDir = "./converter"
+$ContainerCodePath = "/workspace/converter"
 
-# Data path
-$HostDataPath = "D:/iansaididontcare/Lab/others/YA_HAN" # Adjust this path as needed
+# Container data mount path
 $ContainerDataPath = "/workspace/datas"
 
-# Docker Compose file generation
+# Docker Compose file path
 $ComposeFile = "./docker-compose.yml"
 
 Write-Host "Generating docker-compose.yml..."
@@ -33,37 +42,20 @@ services:
       - "${HostCodeDir}:${ContainerCodePath}"
       - "${HostDataPath}:${ContainerDataPath}"
     working_dir: ${ContainerWorkspacePath}
-    command: uvicorn codes.server:app --host 0.0.0.0 --port 8000
+    command: uvicorn server:app --host 0.0.0.0 --port 8000 
 "@
 
-# DevContainer config generation
-$DevContainerDir  = ".devcontainer"
-$DevContainerFile = Join-Path $DevContainerDir "devcontainer.json"
-Write-Host "Generating .devcontainer/devcontainer.json..."
-if (-not (Test-Path $DevContainerDir -PathType Container)) {
-    New-Item -ItemType Directory -Path $DevContainerDir | Out-Null
+# Start the Docker container using docker-compose 
+try {
+    Write-Host "Starting container via docker-compose up --build..."
+    docker-compose up --build # (access inside the docker: docker exec -it zarr_neuroglancer /bin/bash)
 }
-Set-Content -Path $DevContainerFile -Value @"
-{
-  "name": "${ContainerName}",
-  "service": "${ContainerName}",
-  "dockerComposeFile": ".${ComposeFile}",
-  "workspaceFolder": "${ContainerWorkspacePath}",
-  "forwardPorts": [8000, 7000],
-  "customizations": {
-    "vscode": {
-      "settings": {
-        "python.pythonPath": "/usr/local/bin/python"
-      },
-      "extensions": [
-        "ms-python.python",
-        "ms-python.vscode-pylance"
-      ]
+finally {
+    Write-Host "`nStopping and cleaning up Docker container..."
+    docker-compose down
+
+    if (Test-Path $ComposeFile) {
+        Remove-Item $ComposeFile -Force
+        Write-Host "Removed generated docker-compose.yml"
     }
-  }
 }
-"@
-
-# 4) Build and start fresh; on exit (normal or Ctrl+C), the cleanup block will fire
-Write-Host "Starting container via docker-compose up --build…"
-docker-compose up --build

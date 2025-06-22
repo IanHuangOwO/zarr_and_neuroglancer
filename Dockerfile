@@ -6,6 +6,14 @@ FROM python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install dependencies
+# Install Package dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy viewer and server code
+COPY viewer.py .
+COPY server.py .
+COPY converter.py .
