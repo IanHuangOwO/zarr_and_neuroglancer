@@ -13,7 +13,7 @@ VALID_SUFFIXES = [".tif", ".tiff", ".nii.gz", ".gz", ".npy", ".png", ".jpg"] # Z
 
 @staticmethod
 def _estimate_size_gb(shape: tuple, dtype: np.dtype) -> float:
-    """Estimate in‐memory size in GiB for an array of given shape and dtype."""
+    """Estimate in-memory size in GiB for an array of given shape and dtype."""
     return float(np.prod(shape) * np.dtype(dtype).itemsize / (1024 ** 3))
 
 @staticmethod
@@ -24,14 +24,14 @@ def _ensure_3d(arr: np.ndarray) -> np.ndarray:
     return arr
 
 @staticmethod
-def _transpose_array(arr: np.ndarray, transpose: bool) -> np.ndarray:
+def _swap_array(arr: np.ndarray, transpose: bool) -> np.ndarray:
     """Optionally transpose 3D (z,y,x)->(x,y,z) or 2D (y,x)->(x,y)."""
     if not transpose:
         return arr
-    return arr.transpose(0, 2, 1)
+    return arr.swapaxes(1, 2)
 
 @staticmethod
-def _transpose_shape(shape: tuple, transpose: bool) -> tuple:
+def _swap_shape(shape: tuple, transpose: bool) -> tuple:
     """Optionally transpose a shape tuple (z,y,x)->(x,y,z) or (y,x)->(1,x,y)."""
     if not transpose:
         return shape
@@ -50,7 +50,7 @@ def read_tiff(path: Path, read_to_array: bool = True, transpose: bool = False):
     if read_to_array:
         arr = tifffile.imread(str(path))
         arr = _ensure_3d(arr)
-        return _transpose_array(arr, transpose)
+        return _swap_array(arr, transpose)
     
     # metadata‐only branch
     with tifffile.TiffFile(str(path)) as tif:
@@ -63,7 +63,7 @@ def read_tiff(path: Path, read_to_array: bool = True, transpose: bool = False):
             )
             
         shape = (len(shapes), *shapes[0])
-        shape = _transpose_shape(shape, transpose)
+        shape = _swap_shape(shape, transpose)
         dtype = dtypes[0]
         size_gb = _estimate_size_gb(shape, dtype)
         return shape, dtype, size_gb
@@ -72,12 +72,12 @@ def read_tiff(path: Path, read_to_array: bool = True, transpose: bool = False):
 def read_nii_gz(path: Path, read_to_array: bool = True, transpose: bool = False):
     import nibabel as nib
     
-    img = nib.load(str(path), mmap=True)
+    img = nib.load(str(path), mmap=True) 
     if read_to_array:
         arr = np.asanyarray(img.dataobj)
         arr = arr[..., np.newaxis] if arr.ndim == 2 else arr
-        arr = arr.transpose(2, 1, 0)
-        return _transpose_array(arr, transpose)
+        arr = arr.swapaxes(0, 2)
+        return _swap_array(arr, transpose)
     
     # metadata‐only
     shape = img.shape
@@ -89,7 +89,7 @@ def read_nii_gz(path: Path, read_to_array: bool = True, transpose: bool = False)
         shape = (shape[2], shape[1], shape[0])
     elif len(shape) > 3:
         raise ValueError(f"Unsupported NIfTI shape: {shape}")
-    shape = _transpose_shape(shape, transpose)
+    shape = _swap_shape(shape, transpose)
     size_gb = _estimate_size_gb(shape, dtype)
     return shape, dtype, size_gb
 
@@ -98,12 +98,12 @@ def read_npy(path: Path, read_to_array: bool = True, transpose: bool = False):
     if read_to_array:
         arr = np.load(str(path))
         arr = _ensure_3d(arr)
-        return _transpose_array(arr, transpose)
+        return _swap_array(arr, transpose)
     
     # metadata‐only
     arr = np.load(str(path), mmap_mode='r')
     shape, dtype = arr.shape, arr.dtype
-    shape = _transpose_shape(shape, transpose)
+    shape = _swap_shape(shape, transpose)
     size_gb = _estimate_size_gb(shape, dtype)
     return shape, dtype, size_gb
 
@@ -128,12 +128,12 @@ def read_imageio(path: Path, read_to_array: bool = True, transpose: bool = False
     if read_to_array:
         arr = iio.imread(str(path))
         arr = _ensure_3d(arr)
-        return _transpose_array(arr, transpose)
+        return _swap_array(arr, transpose)
     
     # metadata‐only
     arr = iio.imread(str(path))
     shape, dtype = arr.shape, arr.dtype
-    shape = _transpose_shape(shape, transpose)
+    shape = _swap_shape(shape, transpose)
     size_gb = _estimate_size_gb(shape, dtype)
     return shape, dtype, size_gb
 
@@ -307,16 +307,16 @@ class FileReader:
                 del self._cache[idx]
                 
         # 4) Memory check before loading
-        mem_limit_gb = (self.memory_limit_bytes / (1024**3)) * 0.5 # 50% of the limit for safety
+        mem_limit_gb = (self.memory_limit_bytes / (1024**3)) 
         # already cached
         current_gb = sum(self.volume_sizes[i] for i in self._cache)
         # those we still need to load
         to_load = [i for i in needed if i not in self._cache]
         load_gb = sum(self.volume_sizes[i] for i in to_load)
 
-        if current_gb + load_gb > mem_limit_gb:
+        if (current_gb + load_gb) * 2 > mem_limit_gb: # 50% of the limit for safety
             raise MemoryError(
-                f"Request needs {current_gb + load_gb:.2f} GiB "
+                f"Request needs {(current_gb + load_gb ) * 2:.2f} GiB "
                 f"exceeds limit {mem_limit_gb:.2f} GiB."
             )
 
@@ -334,13 +334,17 @@ class FileReader:
                     ): i
                     for i in to_load
                 }
+                
+                # with tqdm(total=len(futures), desc="Load:") as pbar:
                 for fut in as_completed(futures):
                     i = futures[fut]
                     try:
                         arr = fut.result()
                     except Exception as e:
                         raise RuntimeError(f"Failed to load slice #{i}: {e}")
-                    self._cache[i] = arr  # arr is guaranteed 3D
+                    self._cache[i] = arr
+                        
+                        # pbar.update(1)
                     
         # 6) Slice & stitch (unchanged)
         parts = []
@@ -353,3 +357,9 @@ class FileReader:
             parts.append(data[z0:z1, y_start:y_end, x_start:x_end])
 
         return np.concatenate(parts, axis=0)
+    
+    def read_zarr(self, volumn_index=0):
+        if self.volume_types[volumn_index] != ".zarr":
+            raise ValueError()
+        
+        return _read_image(self.volume_files[volumn_index], self.volume_types[volumn_index], True, self.transpose)
