@@ -179,7 +179,7 @@ class FileReader:
         
         logger.info(f"Initializing FileReader with path: {self.input_path}")
         
-        self.volume_name = None
+        self.volume_name: str
         self.volume_files = []
         self.volume_sizes = []
         self.volume_types = []
@@ -188,8 +188,8 @@ class FileReader:
         
         logger.info(f"Found {len(self.volume_files)} volumes")
         
-        self.volume_shape = None
-        self.volume_dtype = None
+        self.volume_shape: tuple
+        self.volume_dtype: np.dtype
         self.volume_cumulative_z = []
         
         self._get_volume_info()
@@ -281,85 +281,52 @@ class FileReader:
         self.volume_dtype = dtypes[0]
     
     def read(self, z_start, z_end, x_start=None, x_end=None, y_start=None, y_end=None):
-        """
-        Read sub-volume [z_start:z_end, y_start:y_end, x_start:x_end].
-        x_* and y_* default to full width/height; only z_* is required.
-        """
+        # 1) defaults
+        _, full_y, full_x = self.volume_shape  # type: ignore
+        x0, x1 = (0 if x_start is None else x_start,
+                full_x if x_end   is None else x_end)
+        y0, y1 = (0 if y_start is None else y_start,
+                full_y if y_end   is None else y_end)
+        logger.info(f"Reading volume z: {z_start} - {z_end}, y: {y0} - {y1} x: {x0} - {x1}")
+        dz = z_end - z_start
+        dy = y1 - y0
+        dx = x1 - x0
 
-        # 1) Defaults for full X/Y
-        _, full_y, full_x = self.volume_shape # type: ignore
-        x_start = 0         if x_start is None else x_start
-        x_end   = full_x    if x_end   is None else x_end
-        y_start = 0         if y_start is None else y_start
-        y_end   = full_y    if y_end   is None else y_end
-        logger.info(f"Reading volume z: {z_start} - {z_end}, y: {y_start} - {y_end} x: {x_start} - {x_end}")
-
-        # 2) Which files overlap [z_start, z_end)?
+        # 2) find which files overlap this Z-range
         prev_cum = [0] + self.volume_cumulative_z[:-1]
-        needed = [
-            i for i, (cum_z, prev_z) in enumerate(zip(self.volume_cumulative_z, prev_cum))
-            if prev_z < z_end and cum_z > z_start
-        ]
+        needed = [i for i, (cum, prev) in enumerate(zip(self.volume_cumulative_z, prev_cum))
+                if prev < z_end and cum > z_start]
 
-        # 3) Evict old cache entries
-        for idx in list(self._cache):
-            if idx not in needed:
-                del self._cache[idx]
-                
-        # 4) Memory check before loading
-        mem_limit_gb = (self.memory_limit_bytes / (1024**3)) 
-        # already cached
-        current_gb = sum(self.volume_sizes[i] for i in self._cache)
-        # those we still need to load
-        to_load = [i for i in needed if i not in self._cache]
-        load_gb = sum(self.volume_sizes[i] for i in to_load)
+        # 3) memory check
+        mem_limit = self.memory_limit_bytes / (1024**3)
+        total_to_load = sum(self.volume_sizes[i] for i in needed)
+        if total_to_load * 2 > mem_limit:
+            raise MemoryError(f"Need {total_to_load*2:.2f}GiB but limit is {mem_limit:.2f}GiB")
 
-        if (current_gb + load_gb) * 2 > mem_limit_gb: # 50% of the limit for safety
-            raise MemoryError(
-                f"Request needs {(current_gb + load_gb ) * 2:.2f} GiB "
-                f"exceeds limit {mem_limit_gb:.2f} GiB."
-            )
+        # 4) pre-allocate output
+        out = np.empty((dz, dy, dx), dtype=self.volume_dtype)
 
-        # 5) Load missing files into cache in parallel
-        to_load = [i for i in needed if i not in self._cache]
-        if to_load:
-            with ThreadPoolExecutor() as executor:
-                futures = {
-                    executor.submit(
-                        _read_image,
-                        self.volume_files[i],
-                        self.volume_types[i],
-                        True,
-                        self.transpose
-                    ): i
-                    for i in to_load
-                }
-                
-                # with tqdm(total=len(futures), desc="Load:") as pbar:
-                for fut in as_completed(futures):
-                    i = futures[fut]
-                    try:
-                        arr = fut.result()
-                    except Exception as e:
-                        raise RuntimeError(f"Failed to load slice #{i}: {e}")
-                    self._cache[i] = arr
-                        
-                        # pbar.update(1)
-                    
-        # 6) Slice & stitch (unchanged)
-        parts = []
-        prev_cum = [0] + self.volume_cumulative_z[:-1]
+        # 5) stream each file
+        offset = 0
         for i in needed:
-            data = self._cache[i]
-            pcz  = prev_cum[i]
-            z0   = max(0, z_start - pcz)
-            z1   = min(data.shape[0], z_end   - pcz)
-            parts.append(data[z0:z1, y_start:y_end, x_start:x_end])
+            base = prev_cum[i]
+            file_z0 = max(0, z_start - base)
+            file_z1 = min(self.volume_cumulative_z[i] - base, z_end - base)
+            length = file_z1 - file_z0
 
-        return np.concatenate(parts, axis=0)
-    
-    def read_zarr(self, volumn_index=0):
-        if self.volume_types[volumn_index] != ".zarr":
-            raise ValueError()
-        
-        return _read_image(self.volume_files[volumn_index], self.volume_types[volumn_index], True, self.transpose)
+            # load just this file (can use mmap for npy, nibabel, etc)
+            arr = _read_image(
+                self.volume_files[i],
+                self.volume_types[i],
+                True,
+                self.transpose
+            )
+            # slice out only [file_z0:file_z1, y0:y1, x0:x1]
+            slab = arr[file_z0:file_z1, y0:y1, x0:x1]
+            out[offset:offset+length, :, :] = slab
+
+            # drop references immediately
+            del arr, slab
+            offset += length
+
+        return out
