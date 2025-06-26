@@ -18,8 +18,8 @@ $ContainerName = "zarr_neuroglancer"
 $ContainerWorkspacePath = "/workspace"
 
 # Fixed code directory
-$HostCodeDir = "./io"
-$ContainerCodePath = "/workspace/io"
+$HostCodeDir = "./image_io"
+$ContainerCodePath = "/workspace/image_io"
 
 # Container data mount path
 $ContainerDataPath = "/workspace/datas"

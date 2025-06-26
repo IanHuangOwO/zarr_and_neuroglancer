@@ -8,7 +8,7 @@ from pathlib import Path
 from numcodecs import Blosc
 from skimage.transform import resize
 from concurrent.futures import ProcessPoolExecutor
-from io.reader import FileReader
+from image_io.reader import FileReader
 
 # Set up module-level logger
 logger = logging.getLogger(__name__)
@@ -140,7 +140,7 @@ def _save_slice(arr, output_base, output_type):
     if output_type.lower() in ["tif", "scroll-tif"]:
         import tifffile
         logger.info(f"Writing volume to {output_base.with_suffix('.tif')}")
-        tifffile.imwrite(str(output_base.with_suffix(".tif")), arr) # type: ignore
+        tifffile.imwrite(str(output_base.with_suffix(".tif")), arr, imagej=True) # type: ignore
     elif output_type.lower() in ["nifti", "scroll-nifti"]:
         import nibabel as nib
         logger.info(f"Writing volume to {output_base.with_suffix('.nii.gz')}")

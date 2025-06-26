@@ -1,7 +1,7 @@
 import argparse
 import logging
-from io.reader import FileReader
-from io.writer import FileWriter
+from image_io.reader import FileReader
+from image_io.writer import FileWriter
 
 logging.basicConfig(
     level=logging.INFO,
