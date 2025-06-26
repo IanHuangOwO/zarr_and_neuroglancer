@@ -44,48 +44,48 @@ def _swap_shape(shape: tuple, transpose: bool) -> tuple:
 # ——— Readers ———
 
 @staticmethod
-# def read_tiff(path: Path, read_to_array: bool = True, transpose: bool = False):
-#     import tifffile
-    
-#     if read_to_array:
-#         arr = tifffile.imread(str(path))
-#         arr = _ensure_3d(arr)
-#         return _swap_array(arr, transpose)
-    
-#     # metadata‐only branch
-#     with tifffile.TiffFile(str(path)) as tif:
-#         shapes = [p.shape for p in tif.pages]
-#         dtypes = [p.dtype for p in tif.pages]
-#         if len({*shapes}) > 1 or len({*dtypes}) > 1:
-#             raise ValueError(
-#                 f"{path.name} has inconsistent pages:\n"
-#                 f"  shapes={shapes}\n  dtypes={dtypes}"
-#             )
-            
-#         shape = (len(shapes), *shapes[0])
-#         shape = _swap_shape(shape, transpose)
-#         dtype = dtypes[0]
-#         size_gb = _estimate_size_gb(shape, dtype)
-#         return shape, dtype, size_gb
-
-
-@staticmethod
 def read_tiff(path: Path, read_to_array: bool = True, transpose: bool = False):
     import tifffile
-
-    arr = tifffile.imread(str(path))
-
-    if not read_to_array:
-        # Metadata-only mode
-        shape = arr.shape
-        dtype = arr.dtype
+    
+    if read_to_array:
+        arr = tifffile.imread(str(path))
+        arr = _ensure_3d(arr)
+        return _swap_array(arr, transpose)
+    
+    # metadata‐only branch
+    with tifffile.TiffFile(str(path)) as tif:
+        shapes = [p.shape for p in tif.pages]
+        dtypes = [p.dtype for p in tif.pages]
+        if len({*shapes}) > 1 or len({*dtypes}) > 1:
+            raise ValueError(
+                f"{path.name} has inconsistent pages:\n"
+                f"  shapes={shapes}\n  dtypes={dtypes}"
+            )
+            
+        shape = (len(shapes), *shapes[0])
         shape = _swap_shape(shape, transpose)
+        dtype = dtypes[0]
         size_gb = _estimate_size_gb(shape, dtype)
         return shape, dtype, size_gb
 
-    # Read full array
-    arr = _ensure_3d(arr)
-    return _swap_array(arr, transpose)
+
+# @staticmethod
+# def read_tiff(path: Path, read_to_array: bool = True, transpose: bool = False):
+#     import tifffile
+
+#     arr = tifffile.imread(str(path))
+
+#     if not read_to_array:
+#         # Metadata-only mode
+#         shape = arr.shape
+#         dtype = arr.dtype
+#         shape = _swap_shape(shape, transpose)
+#         size_gb = _estimate_size_gb(shape, dtype)
+#         return shape, dtype, size_gb
+
+#     # Read full array
+#     arr = _ensure_3d(arr)
+#     return _swap_array(arr, transpose)
 
 
 @staticmethod
