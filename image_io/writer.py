@@ -49,7 +49,7 @@ def two_pass_resize_zarr(
     target_shape: tuple[int,int,int],
     dtype: np.dtype,
     order: int = 1,
-    chunk_size: int = 64,
+    chunk_size: int = 128,
 ):
     """
     Resize a 3D Zarr array in two passes with an on‐disk temp.
@@ -70,7 +70,6 @@ def two_pass_resize_zarr(
     target_z, target_y, target_x = target_shape
     
     # 1) create the on‐disk temp buffer
-    
     temp_arr = output_source.create_dataset(
         "temp", shape=(current_z, target_y, target_x), 
         chunks=(chunk_size, chunk_size, chunk_size),
@@ -95,7 +94,7 @@ def two_pass_resize_zarr(
             ]
             resized_slices = list(exe.map(_resize_xy_worker, args))
             logger.info(f"Writing volume to temp z: {z0} - {z1}")
-            temp_arr[z0:z1, :, :] = np.stack(resized_slices)
+            temp_arr[z0:z1, :, :] = np.stack(resized_slices, axis=0)
 
     # Pass 2: XZ → output_arr (now with threaded writes)
     with ProcessPoolExecutor(max_workers=8) as exe:
@@ -107,9 +106,8 @@ def two_pass_resize_zarr(
                 for j in range(block.shape[1])
             ]
             resized_slices = list(exe.map(_resize_xz_worker, args))
-            stack = np.stack(resized_slices)
             logger.info(f"Writing volume to zarr y: {y0} - {y1}")
-            output_source[str(level)][:, y0:y1, :] = stack.transpose(1, 0, 2)
+            output_source[str(level)][:, y0:y1, :] = np.stack(resized_slices, axis=1)
 
     # Clean up
     logger.info(f"Cleaning temp zarr")
@@ -136,6 +134,7 @@ def _check_memory_limit(shape, dtype, memory_limit_gb):
     
     return size_in_gb
 
+
 def _save_slice(arr, output_base, output_type):
     if output_type.lower() in ["tif", "scroll-tif"]:
         import tifffile
@@ -156,6 +155,7 @@ def _save_slice(arr, output_base, output_type):
         nib.save(nifti_img, str(output_base.with_suffix(".nii.gz")))
     else:
         raise ValueError(f"Unsupported output_type '{output_type}'. Only 'tif', 'nifti', 'scroll-tif', and 'scroll-nifti' are supported.")
+
 
 class FileWriter:
     def __init__(self, reader, output_path, full_res_shape, memory_limit_gb):

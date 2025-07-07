@@ -43,7 +43,7 @@ def _swap_shape(shape: tuple, transpose: bool) -> tuple:
 
 # ——— Readers ———
 
-@staticmethod
+# @staticmethod
 # def read_tiff(path: Path, read_to_array: bool = True, transpose: bool = False):
 #     import tifffile
     
@@ -69,23 +69,73 @@ def _swap_shape(shape: tuple, transpose: bool) -> tuple:
 #         return shape, dtype, size_gb
 
 
+# @staticmethod
+# def read_tiff(path: Path, read_to_array: bool = True, transpose: bool = False):
+#     import tifffile
+
+#     arr = tifffile.imread(str(path))
+
+#     if not read_to_array:
+#         # Metadata-only mode
+#         shape = arr.shape
+#         dtype = arr.dtype
+#         shape = _swap_shape(shape, transpose)
+#         size_gb = _estimate_size_gb(shape, dtype)
+#         return shape, dtype, size_gb
+
+#     # Read full array
+#     arr = _ensure_3d(arr)
+#     return _swap_array(arr, transpose)
+
 @staticmethod
 def read_tiff(path: Path, read_to_array: bool = True, transpose: bool = False):
     import tifffile
+    
+    if read_to_array:
+        arr = tifffile.imread(str(path))
+        arr = _ensure_3d(arr)
+        return _swap_array(arr, transpose)
 
-    arr = tifffile.imread(str(path))
+    def _ensure_3d_shape(shape):
+        if len(shape) == 2:
+            return (1, *shape)
+        elif len(shape) == 3:
+            return shape
+        else:
+            raise ValueError(f"Unsupported shape: {shape}")
 
-    if not read_to_array:
-        # Metadata-only mode
-        shape = arr.shape
-        dtype = arr.dtype
+    with tifffile.TiffFile(str(path)) as tif:
+        dtype = tif.pages[0].dtype
+
+        # Case 1: ImageJ-style volume encoded in a single page
+        if hasattr(tif, 'imagej_metadata') and tif.imagej_metadata:
+            ij_meta = tif.imagej_metadata
+            slices = ij_meta.get('slices', 1)
+            shape2d = tif.pages[0].shape  # (Y, X)
+            shape = (slices, *shape2d)
+        
+        # Case 2: multi-page 2D (or rare 3D) TIFF
+        elif len(tif.pages) > 1:
+            shapes = [p.shape for p in tif.pages]
+            dims = set(len(s) for s in shapes)
+
+            if dims == {2}:
+                # Stack of 2D pages
+                shape = (len(shapes), *shapes[0])
+            elif dims == {3}:
+                # Stack of 3D pages
+                z_sum = sum(p.shape[0] for p in tif.pages)
+                shape = (z_sum, *shapes[0][1:])
+            else:
+                raise ValueError("Mixed page dimensions — unsupported layout")
+
+        # Case 3: Single 2D page
+        else:
+            shape = _ensure_3d_shape(tif.pages[0].shape)
+
         shape = _swap_shape(shape, transpose)
         size_gb = _estimate_size_gb(shape, dtype)
         return shape, dtype, size_gb
-
-    # Read full array
-    arr = _ensure_3d(arr)
-    return _swap_array(arr, transpose)
 
 
 @staticmethod
@@ -113,6 +163,7 @@ def read_nii_gz(path: Path, read_to_array: bool = True, transpose: bool = False)
     size_gb = _estimate_size_gb(shape, dtype)
     return shape, dtype, size_gb
 
+
 @staticmethod
 def read_npy(path: Path, read_to_array: bool = True, transpose: bool = False):
     if read_to_array:
@@ -127,6 +178,7 @@ def read_npy(path: Path, read_to_array: bool = True, transpose: bool = False):
     size_gb = _estimate_size_gb(shape, dtype)
     return shape, dtype, size_gb
 
+
 @staticmethod
 def read_zarr(path: Path, read_to_array: bool = True, transpose: bool = False):
     import zarr
@@ -140,6 +192,7 @@ def read_zarr(path: Path, read_to_array: bool = True, transpose: bool = False):
     # metadata‐only
     shape, dtype = arr.shape, arr.dtype
     return shape, dtype, 0
+
 
 @staticmethod
 def read_imageio(path: Path, read_to_array: bool = True, transpose: bool = False):
