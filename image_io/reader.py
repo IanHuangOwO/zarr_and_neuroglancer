@@ -133,6 +133,23 @@ def read_tiff(path: Path, read_to_array: bool = True, transpose: bool = False):
         else:
             shape = _ensure_3d_shape(tif.pages[0].shape)
 
+    
+    if read_to_array:
+        arr = tifffile.imread(str(path))
+        arr = _ensure_3d(arr)
+        return _swap_array(arr, transpose)
+    
+    # metadata‐only branch
+    with tifffile.TiffFile(str(path)) as tif:
+        shapes = [p.shape for p in tif.pages]
+        dtypes = [p.dtype for p in tif.pages]
+        if len({*shapes}) > 1 or len({*dtypes}) > 1:
+            raise ValueError(
+                f"{path.name} has inconsistent pages:\n"
+                f"  shapes={shapes}\n  dtypes={dtypes}"
+            )
+            
+        shape = (len(shapes), *shapes[0])
         shape = _swap_shape(shape, transpose)
         size_gb = _estimate_size_gb(shape, dtype)
         return shape, dtype, size_gb
