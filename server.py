@@ -26,6 +26,10 @@ def serve_file(file_path: str):
         })
     
     if os.path.isfile(full_path):
-        return FileResponse(full_path)
+        return FileResponse(
+            full_path, 
+            media_type="application/octet-stream", 
+            headers={"Cache-Control": "public, max-age=31536000"}
+        )
     
     raise HTTPException(status_code=404, detail="File not found")

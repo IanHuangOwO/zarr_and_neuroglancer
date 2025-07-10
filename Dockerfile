@@ -16,4 +16,3 @@ WORKDIR /workspace
 # Copy viewer and server code
 COPY viewer.py .
 COPY server.py .
-COPY converter.py .
