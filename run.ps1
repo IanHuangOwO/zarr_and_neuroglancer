@@ -13,7 +13,7 @@ if (-not $ResolvedPath) {
 
 
 # ----- Docker information -----
-$ContainerName = "zarr_neuroglancer"
+$ContainerName = "neuroglancer"
 $ContainerWorkspacePath = "/workspace"
 
 $HostDataPath = $ResolvedPath.Path -replace '\\', '/'
@@ -37,13 +37,13 @@ services:
     volumes:
       - "${HostDataPath}:${ContainerDataPath}"
     working_dir: ${ContainerWorkspacePath}
-    command: uvicorn server:app --host 0.0.0.0 --port 8000 --workers 4 --loop uvloop
+    command: sh -c "python viewer.py & uvicorn server:app --host 0.0.0.0 --port 8000 --workers 4 --loop uvloop --no-access-log"
 "@
 
 # ----- Start the Docker container ----- 
 try {
     Write-Host "Starting container via docker-compose up --build..."
-    docker-compose up --build # (access inside the docker: docker exec -it zarr_neuroglancer /bin/bash)
+    docker-compose up --build
 }
 finally {
     Write-Host "`nStopping and cleaning up Docker container..."
@@ -53,4 +53,7 @@ finally {
         Remove-Item $ComposeFile -Force
         Write-Host "Removed generated docker-compose.yml"
     }
+
+    Write-Host "Pruning unused Docker images..."
+    docker image prune -f
 }
