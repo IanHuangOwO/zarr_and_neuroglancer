@@ -77,7 +77,25 @@ Your Zarr data should be located in the directory you specify when prompted. By 
 /workspace/datas
 ```
 
-Update `viewer.py` if needed to reflect how your data should be displayed.
+If your original Zarr dataset is located at:
+
+```
+C:\others\annotation_ome.zarr
+```
+
+Then when prompted by the script, enter:
+
+```
+C:\others
+```
+
+Once the server is running, you can open Neuroglancer and use the following path to view the data:
+
+```
+zarr://http://localhost:8000/annotation_ome.zarr
+```
+
+This tells Neuroglancer to access the Zarr dataset via the server running in the Docker container.
 
 ---
 
