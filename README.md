@@ -47,12 +47,10 @@ chmod +x run.sh
 
 You’ll be prompted to enter the path to your **Zarr dataset directory**. The script will handle everything from Docker build to startup.
 
----
-
-## 🛠️ What the Script Does
+#### 🛠️ What the Script Does
 
 - Dynamically generates a `docker-compose.yml`
-- Mounts your dataset into the container
+- Mounts your dataset at `/workspace/datas`
 - Launches `viewer.py` and a FastAPI server
 - Cleans up Docker resources after exit
 
