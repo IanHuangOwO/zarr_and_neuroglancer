@@ -58,18 +58,7 @@ You’ll be prompted to enter the path to your **Zarr dataset directory**. The s
 
 ---
 
-## 🧪 Optional: Manual Docker Commands
-
-If you prefer to run everything manually:
-
-```bash
-docker build -t zarr-neuroglancer .
-docker run -it -p 8000:8000 -v /your/data:/workspace/datas zarr-neuroglancer
-```
-
----
-
-## 📁 Serving Your Data
+## 3. Serving Your Data
 
 Your Zarr data should be located in the directory you specify when prompted. By default, it will be mounted inside the container at:
 
