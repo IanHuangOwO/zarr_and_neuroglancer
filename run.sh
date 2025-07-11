@@ -8,7 +8,7 @@ NORMALIZED_PATH=$(realpath "$USER_INPUT" 2>/dev/null)
 
 # Validate input
 if [ ! -d "$NORMALIZED_PATH" ]; then
-    echo "❌ The specified path does not exist or is not a directory. Exiting..."
+    echo "The specified path does not exist or is not a directory. Exiting..."
     exit 1
 fi
 
