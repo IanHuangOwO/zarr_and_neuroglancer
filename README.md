@@ -67,12 +67,6 @@ docker build -t zarr-neuroglancer .
 docker run -it -p 8000:8000 -v /your/data:/workspace/datas zarr-neuroglancer
 ```
 
-Then open your browser at:
-
-```
-http://localhost:8000
-```
-
 ---
 
 ## 📁 Serving Your Data
