@@ -41,11 +41,11 @@ EOF
 
 # ----- Start the Docker container -----
 echo "Starting container via docker-compose up --build..."
-docker-compose up --build
+docker compose up --build
 
 # ----- Clean up after exit -----
 echo -e "\nStopping and cleaning up Docker container..."
-docker-compose down
+docker compose down
 
 if [ -f "$COMPOSE_FILE" ]; then
     rm -f "$COMPOSE_FILE"

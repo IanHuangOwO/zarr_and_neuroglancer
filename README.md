@@ -1,11 +1,10 @@
-Hello
-# 🧠 Zarr Neuroglancer Viewer
+# Zarr Neuroglancer Viewer
 
 This project visualizes Zarr image data in a Neuroglancer viewer served via FastAPI.
 
 ---
 
-## 🚀 Quick Start (Recommended)
+## Quick Start (Recommended)
 
 ### 1. Install Docker
 
@@ -47,7 +46,7 @@ chmod +x run.sh
 
 You’ll be prompted to enter the path to your **Zarr dataset directory**. The script will handle everything from Docker build to startup.
 
-#### 🛠️ What the Script Does
+#### What the Script Does
 
 - Dynamically generates a `docker-compose.yml`
 - Mounts your dataset at `/workspace/datas`
@@ -86,6 +85,6 @@ This tells Neuroglancer to access the Zarr dataset via the server running in the
 
 ---
 
-## 📜 License
+## License
 
 MIT License

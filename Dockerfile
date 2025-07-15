@@ -1,4 +1,4 @@
-# Dockerfile for Neuroglancer with FastAPI backend and Zarr-Tiff Format Transform
+# Dockerfile for Neuroglancer with FastAPI backend
 # Based on Python 3.10 slim image
 FROM python:3.10-slim
 
